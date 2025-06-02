@@ -26,9 +26,28 @@ router.get('/my-attendance', auth, isStudent, attendanceController.getMyAttendan
 
 // Staff routes
 router.get('/module/:moduleId', auth, isStaff, attendanceController.getModuleAttendance);
+router.get('/student/:studentId/logs', auth, isStaff, (req, res, next) => {
+    console.log('Received request for student attendance logs');
+    console.log('Student ID:', req.params.studentId);
+    console.log('User role:', req.user.role);
+    next();
+}, attendanceController.getStudentAttendanceLogs);
 
 // Admin routes
-router.get('/student/:studentId', auth, isAdmin, attendanceController.getStudentAttendance);
+router.get('/admin/student/:studentId', auth, isAdmin, (req, res, next) => {
+    console.log('Admin accessing student attendance');
+    console.log('Student ID:', req.params.studentId);
+    console.log('User role:', req.user.role);
+    next();
+}, attendanceController.getStudentAttendance);
+
+// Remove the duplicate route and add the correct one
+router.get('/attendance/admin/student/:studentId', auth, isAdmin, (req, res, next) => {
+    console.log('Admin accessing student attendance (attendance route)');
+    console.log('Student ID:', req.params.studentId);
+    console.log('User role:', req.user.role);
+    next();
+}, attendanceController.getStudentAttendance);
 
 // Test route to create sample attendance data (accessible by admin)
 router.post('/create-test-data/:studentId', auth, isAdmin, async (req, res) => {

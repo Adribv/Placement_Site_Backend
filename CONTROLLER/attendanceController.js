@@ -25,21 +25,62 @@ const getAllAttendanceLogs = async (req, res) => {
     }
 };
 
-// Get attendance logs for a specific student
-exports.getStudentAttendanceLogs = async (req, res) => {
+// Get attendance logs for a specific student (for staff)
+const getStudentAttendanceLogs = async (req, res) => {
     try {
         const { studentId } = req.params;
+        const { moduleId, startDate, endDate } = req.query;
         
-        const attendanceLogs = await Attendance.find({ studentId })
-            .populate('studentId', 'name rollNumber')
-            .populate('markedBy', 'name')
-            .sort({ date: -1 });
+        console.log('Fetching attendance logs for student:', studentId);
+        console.log('Query parameters:', { moduleId, startDate, endDate });
         
+        // Build query
+        const query = { student: studentId };
+        if (moduleId) query.training = moduleId;
+
+        console.log('MongoDB query:', query);
+
+        // Find all training progress records for the student
+        const trainingProgress = await TrainingProgress.find(query)
+            .populate('student', 'name rollNumber')
+            .populate('training', 'title')
+            .sort({ 'attendance.date': -1 });
+
+        console.log('Found training progress records:', trainingProgress.length);
+
+        // Transform the data into a flat array of attendance records
+        let attendanceLogs = trainingProgress.flatMap(progress => 
+            progress.attendance.map(record => ({
+                _id: record._id || new mongoose.Types.ObjectId(),
+                date: record.date,
+                status: record.present ? 'present' : 'absent',
+                moduleId: progress.training,
+                moduleTitle: progress.training?.title || 'Unknown Module',
+                studentId: progress.student,
+                studentName: progress.student?.name || 'Unknown Student',
+                remarks: record.remarks || '-'
+            }))
+        );
+
+        console.log('Transformed attendance logs:', attendanceLogs.length);
+
+        // Apply date filters if provided
+        if (startDate || endDate) {
+            attendanceLogs = attendanceLogs.filter(log => {
+                const logDate = new Date(log.date);
+                if (startDate && logDate < new Date(startDate)) return false;
+                if (endDate && logDate > new Date(endDate)) return false;
+                return true;
+            });
+            console.log('Filtered attendance logs:', attendanceLogs.length);
+        }
+
         res.status(200).json({
             success: true,
             data: attendanceLogs
         });
     } catch (error) {
+        console.error('Error in getStudentAttendanceLogs:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching student attendance logs',
@@ -150,7 +191,7 @@ const getModuleAttendance = async (req, res) => {
     }
 };
 
-// Get student attendance
+// Get student attendance (for admin)
 const getStudentAttendance = async (req, res) => {
     try {
         const { studentId } = req.params;
@@ -219,5 +260,6 @@ module.exports = {
     getMyAttendance,
     markAttendance,
     getModuleAttendance,
-    getStudentAttendance
+    getStudentAttendance,
+    getStudentAttendanceLogs
 }; 
