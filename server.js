@@ -7,13 +7,11 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 
-
 const app = express();
 
 // Middleware setup
 app.use(cors());
 app.use(bodyParser.json()); 
-
 
 mongoose.connect(process.env.DB_URL)
   .then(() => console.log('MongoDB Connected'))
@@ -32,10 +30,13 @@ uploadDirs.forEach(dir => {
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.listen(process.env.PORT || 5000, () => {
-  console.log(`Server running on port ${process.env.PORT || 5000}`);
-});
+// Mount routes
+app.use('/admin', require('./ROUTER/adminRoute'));
+app.use('/student', require('./ROUTER/studentRoute'));
+app.use('/staff', require('./ROUTER/staffRoute'));
+app.use('/attendance', require('./ROUTER/attendanceRoutes'));
 
-app.use('/admin',require('./ROUTER/adminRoute'));
-app.use('/student',require('./ROUTER/studentRoute'));
-app.use('/staff',require('./ROUTER/staffRoute'));
+const PORT = process.env.PORT || 3500;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

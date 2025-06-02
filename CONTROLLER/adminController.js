@@ -168,6 +168,36 @@ const getAllStudents = async (req, res) => {
   }
 };
 
+// Get student details
+const getStudentDetails = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    const student = await Student.findById(studentId)
+      .select('-password')
+      .populate('trainings.moduleId', 'title description');
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: student
+    });
+  } catch (error) {
+    console.error('Error fetching student details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching student details',
+      error: error.message
+    });
+  }
+};
+
 // Add new training module
 const addTrainingModule = async (req, res) => {
   try {
@@ -779,6 +809,7 @@ module.exports = {
   registerStudent,
   bulkRegisterStudents,
   getAllStudents,
+  getStudentDetails,
   addTrainingModule,
   getAllModules,
   updateModule,
