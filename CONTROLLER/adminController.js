@@ -107,44 +107,68 @@ const bulkRegisterStudents = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const { batch, passoutYear, department, location } = req.body;
-
-
-    if (!batch || !passoutYear || !department || !location) {
-      return res.status(400).json({ message: 'Batch, Passout Year, Department, and Location are required in form-data' });
-    }
-
     const filePath = req.file.path;
     const workbook = XLSX.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const studentsData = XLSX.utils.sheet_to_json(sheet);
+    const studentsData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    const preparedStudents = await Promise.all(
-      studentsData.map(async (student) => {
-        if (!student.name || !student.regNo || !student.email) {
-          throw new Error('Missing required fields (name, regNo, email) in Excel');
-        }
+    // Batch code mapping
+    const batchMap = {
+      'M': 'Marquee',
+      'S': 'Super Dream',
+      'D': 'Dream',
+      'Se': 'Service',
+      'NA': 'General'
+    };
 
-        const hashedPassword = await bcrypt.hash(student.regNo.trim(), 10);
-        return {
-          name: student.name.trim(),
-          regNo: student.regNo.trim(),
-          email: student.email.trim(),
-          batch: batch.trim(),
-          passoutYear: passoutYear.trim(),
-          department: department.trim(),
-          location: location.trim(),
-          password: hashedPassword
-        };
-      })
-    );
+    const validStudents = [];
+    const errors = [];
 
-    await Student.insertMany(preparedStudents);
+    await Promise.all(studentsData.map(async (student, idx) => {
+      // Map Excel columns to schema fields
+      const regNo = student['Register N']?.toString().trim();
+      const name = student['Name']?.toString().trim();
+      const department = student['Departme']?.toString().trim();
+      const location = student['Location']?.toString().trim();
+      const batchCode = student['Batch']?.toString().trim();
+      const passoutYear = student['Passout Ye']?.toString().trim();
+      const email = student['email']?.toString().trim();
+      const batch = batchMap[batchCode] || batchCode;
 
+      // Skip completely empty rows
+      if (!name && !regNo && !department && !location && !batchCode && !passoutYear && !email) {
+        return;
+      }
+
+      // Check for missing fields
+      if (!name || !regNo || !email || !department || !location || !batch || !passoutYear) {
+        errors.push({ row: idx + 2, error: 'Missing required fields', data: student });
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(regNo, 10);
+      validStudents.push({
+        name,
+        regNo,
+        email,
+        batch,
+        passoutYear,
+        department,
+        location,
+        password: hashedPassword
+      });
+    }));
+
+    if (validStudents.length > 0) {
+      await Student.insertMany(validStudents);
+    }
     fs.unlinkSync(filePath);
-
-    res.status(201).json({ message: 'Students registered successfully' });
-
+    res.status(201).json({
+      message: 'Bulk upload completed',
+      successCount: validStudents.length,
+      errorCount: errors.length,
+      errors
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Bulk registration failed', error: err.message });

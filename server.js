@@ -10,7 +10,17 @@ const path = require('path');
 const app = express();
 
 // Middleware setup
-app.use(cors());
+const allowedOrigins = [
+  'https://placement-site-frontend.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(bodyParser.json()); 
 
 mongoose.connect(process.env.DB_URL)
