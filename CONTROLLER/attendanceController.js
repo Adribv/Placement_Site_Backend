@@ -69,7 +69,11 @@ const getStudentAttendanceLogs = async (req, res) => {
             attendanceLogs = attendanceLogs.filter(log => {
                 const logDate = new Date(log.date);
                 if (startDate && logDate < new Date(startDate)) return false;
-                if (endDate && logDate > new Date(endDate)) return false;
+                if (endDate) {
+                    const end = new Date(endDate);
+                    end.setHours(23, 59, 59, 999);
+                    if (logDate > end) return false;
+                }
                 return true;
             });
             console.log('Filtered attendance logs:', attendanceLogs.length);

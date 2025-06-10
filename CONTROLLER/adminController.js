@@ -811,19 +811,70 @@ const assignStaffToModule = async (req, res) => {
   try {
     const { moduleId, staffId } = req.body;
     const Module = require('../MODELS/moduleSchema');
+    const Staff = require('../MODELS/staffSchema');
     
-    const module = await Module.findById(moduleId);
+    // Find the module and staff
+    const [module, staff] = await Promise.all([
+      Module.findById(moduleId),
+      Staff.findById(staffId)
+    ]);
+
     if (!module) {
       return res.status(404).json({ message: 'Module not found' });
     }
-    
-    module.staffAssigned = staffId;
-    await module.save();
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    // Update module's staffAssigned array
+    await Module.updateOne(
+      { _id: moduleId },
+      { 
+        $addToSet: { staffAssigned: staffId } // $addToSet ensures no duplicates
+      }
+    );
+
+    // Update staff's modules array
+    await Staff.updateOne(
+      { _id: staffId },
+      { 
+        $addToSet: { modules: moduleId } // $addToSet ensures no duplicates
+      }
+    );
     
     res.status(200).json({ message: 'Staff assigned to module successfully' });
   } catch (error) {
     console.error('Error assigning staff to module:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get leaderboard for all modules
+const getAllModulesLeaderboard = async (req, res) => {
+  try {
+    // Fetch all students and their scores for all modules
+    const students = await Student.find({}, '-password');
+    // For a simple version, just return all students sorted by averageScore
+    const leaderboard = students
+      .map(student => ({
+        studentId: student._id,
+        name: student.name,
+        regNo: student.regNo,
+        department: student.department,
+        averageScore: student.averageScore || 0, // or calculate as needed
+        rank: 0 // will be set below
+      }))
+      .sort((a, b) => b.averageScore - a.averageScore);
+
+    // Assign ranks
+    leaderboard.forEach((student, idx) => {
+      student.rank = idx + 1;
+    });
+
+    res.json({ leaderboard });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch all modules leaderboard', error: err.message });
   }
 };
 
@@ -848,5 +899,6 @@ module.exports = {
   registerStaff,
   getAllStaff,
   deleteStaff,
-  assignStaffToModule
+  assignStaffToModule,
+  getAllModulesLeaderboard
 };

@@ -66,4 +66,7 @@ router.route('/staff/:staffId')
 router.route('/assign-staff')
     .post(adminController.assignStaffToModule);
 
+// Leaderboard route
+router.get('/leaderboard/all-modules', adminController.getAllModulesLeaderboard);
+
 module.exports = router;

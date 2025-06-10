@@ -6,7 +6,7 @@ const trainingModule = new mongoose.Schema({
     durationDays: Number,
     examsCount: Number,
     location: { type: String, required: true },
-    staffAssigned: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
+    staffAssigned: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Staff' }],
     isCompleted: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   });

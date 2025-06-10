@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 // Register staff
 exports.registerStaff = async (req, res) => {
   try {
-    const { name, email, password, location } = req.body;
+    const { name, email, password } = req.body;
     
     // Check if staff already exists
     const existingStaff = await Staff.findOne({ email });
@@ -21,7 +21,7 @@ exports.registerStaff = async (req, res) => {
       name,
       email,
       password: password || '12345', // Default password
-      location
+      modules: []
     });
     
     await staff.save();
@@ -105,13 +105,17 @@ exports.getStudentsByLocationAndModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
     const { location } = req.query;
-    
-    // Find students by location who are enrolled in the module
-    const students = await Student.find({
-      location,
-      'trainings.moduleId': moduleId
-    });
-    
+    let students;
+    if (location) {
+      students = await Student.find({
+        location,
+        'trainings.moduleId': moduleId
+      });
+    } else {
+      students = await Student.find({
+        'trainings.moduleId': moduleId
+      });
+    }
     res.status(200).json(students);
   } catch (error) {
     console.error('Error getting students by location and module:', error);
@@ -246,7 +250,7 @@ exports.updateAttendance = async (req, res) => {
 // Get all staff (admin only)
 exports.getAllStaff = async (req, res) => {
   try {
-    const staff = await Staff.find().select('-password');
+    const staff = await Staff.find().select('-password').populate('modules');
     res.status(200).json(staff);
   } catch (error) {
     console.error('Error getting all staff:', error);
